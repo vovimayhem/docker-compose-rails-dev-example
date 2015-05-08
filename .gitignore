@@ -40,3 +40,12 @@ bower.json
 
 # Ignore pow environment settings
 .powenv
+
+# Ignore bash / IRB / Byebug history files
+/.bash_history
+/.byebug_hist
+/.pry_history
+/.guard_history
+
+# TODO: Remove whatever makes the .gem file to be created:
+/.gem
