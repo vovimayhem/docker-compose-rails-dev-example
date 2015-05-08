@@ -1,0 +1,14 @@
+# Ignore files not needed when building a Docker image of this project
+
+# Ignore the temporary files:
+/tmp/*
+/log/*.log
+
+# Ignore the gems installed by bundler, as they should be installed from zero
+# by the Docker image building process:
+/vendor/bundle
+
+# Ignore shell & console artifacts, such as bash, byebug and pry history logs:
+.bash_history
+.byebug_hist
+.pry_history
