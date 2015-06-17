@@ -1,0 +1,7 @@
+#! /bin/bash
+
+RUBY_DEBUG_HOST='localhost'
+
+echo "Start debugging ruby process at $RUBY_DEBUG_HOST:$RUBY_DEBUG_PORT:";
+
+byebug -R $RUBY_DEBUG_HOST:$RUBY_DEBUG_PORT
