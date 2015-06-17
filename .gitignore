@@ -49,3 +49,6 @@ bower.json
 
 # TODO: Remove whatever makes the .gem file to be created:
 /.gem
+
+# Ignore environment file:
+/.env

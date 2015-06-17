@@ -1,0 +1,83 @@
+---
+# Our PostgreSQL service:
+postgres:
+  image: postgres:9.4.2 # Heroku PostgreSQL Version
+  ports:
+    - "5432:5432" # Bind host port 5432 to PostgreSQL port 5432
+  volumes:
+    - docker-compose/postgres-setup:/docker-entrypoint-initdb.d
+  environment:
+    LC_ALL: C.UTF-8
+    POSTGRES_PASSWORD: my_app
+
+# Our Redis service:
+redis:
+  image: redis:2.8
+  ports:
+    - "6379:6379" # Bind host port 6379 to Redis port 6379
+
+# Application: -----------------------------------------------------------------
+# We'll also use this configuration (&app_base) for the worker and test
+# containers:
+web: &app_base
+  image: vovimayhem/app-dev:mri-2.2 # A ruby image with DTrace enabled for dev
+  # Rails 4.2 now binds to 127.0.0.1 by default and not 0.0.0.0.
+  # Start the server using bin/rails server -b 0.0.0.0 and that should sort it.
+  # http://stackoverflow.com/questions/27799260/rails-4-2-server-port-forwarding-on-vagrant-does-not-work
+  # It's fine for development, do not do it in production:
+  command: rails server -p 3000 -b 0.0.0.0
+  ports:
+    - "3000:3000" # Bind host port 3000 to app HTTP port 3000
+  volumes:
+    - .:/app
+  ##############################################################################
+  # With linked containers, Docker writes entries to the container's /etc/hosts.
+  # We'll try here naming the entries docker will insert into the
+  # container's /etc/hosts, so we can use more familiar URL's for our app - See
+  # this container's environment section below:
+  links: &app_links
+    - postgres:postgres.myapp.example.com
+    - redis:redis.myapp.example.com
+  environment: &app_environment
+    # PostgreSQL Database:
+    DATABASE_URL: postgres://postgres:my_app@postgres.myapp.example.com:5432/my_app_development?pool=25&encoding=unicode
+
+    # Redis Database:
+    REDIS_URL: redis://redis.myapp.example.com:6379
+
+    # Sidekiq configuration:
+    SIDEKIQ_CONCURRENCY: 5
+    SIDEKIQ_TIMEOUT: 10
+
+    # Enable the byebug debugging server - this can be overriden
+    # from the command line:
+    ENABLE_DEBUG_SERVER: true
+
+    # Run the app in the 'development' environment:
+    RACK_ENV: development
+    RAILS_ENV: development
+  env_file: .env # Include the environment variables in the unversioned .env file
+
+worker:
+  <<: *app_base
+  ports: []
+  command: sidekiq -c 25 -q default
+
+# App Guard: Keeps running tests on a separate process:
+test:
+  <<: *app_base # We copy from &app_base, and override:
+  ports: []
+  command: guard start --no-bundler-warning --no-interactions
+  links:
+    - postgres:postgres.myapp.example.com
+    - redis:redis.myapp.example.com
+    # Linking to the web and worker containers so we can launch remote
+    # debug sessions from this container to the web and worker processes:
+    - web:web.myapp.example.com
+    - worker:worker.myapp.example.com
+  environment:
+    <<: *app_environment
+    # Run the app in the 'test' environment, instead of the default 'developent'
+    RACK_ENV: test
+    RAILS_ENV: test
+    RUBY_DEBUG_PORT: 8989

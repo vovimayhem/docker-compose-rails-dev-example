@@ -12,3 +12,7 @@
 .bash_history
 .byebug_hist
 .pry_history
+
+# Ignore the docker-compose project files:
+docker-compose.yml
+first_time_setup.sh
