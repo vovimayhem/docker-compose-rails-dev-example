@@ -7,6 +7,14 @@ class PostsController < ApplicationController
     @posts = Post.all
   end
 
+  # GET /posts/byebug
+  def try_byebug
+    require 'byebug'
+    byebug
+    Rails.logger.debug "Just went past through a byebug breakpoint!"
+    redirect_to :index
+  end
+
   # GET /posts/1
   # GET /posts/1.json
   def show
