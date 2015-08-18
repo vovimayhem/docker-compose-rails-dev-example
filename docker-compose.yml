@@ -1,11 +1,12 @@
 ---
 # Our PostgreSQL service:
 postgres:
-  image: postgres:9.4.2 # Heroku PostgreSQL Version
+  image: postgres:9.4.2 # Heroku PostgreSQL Version. This of course is going to be updated constantly!
   ports:
     - "5432:5432" # Bind host port 5432 to PostgreSQL port 5432
   volumes:
-    - docker-compose/postgres-setup:/docker-entrypoint-initdb.d
+    - .:/app # We're mounting this folder so we can backup/restore database dumps from our app folder.
+    - ./docker-compose/postgres-setup:/docker-entrypoint-initdb.d
   environment:
     LC_ALL: C.UTF-8
     POSTGRES_PASSWORD: my_app
