@@ -69,13 +69,6 @@ test:
   <<: *app_base # We copy from &app_base, and override:
   ports: []
   command: guard start --no-bundler-warning --no-interactions
-  links:
-    - postgres:postgres.myapp.example.com
-    - redis:redis.myapp.example.com
-    # Linking to the web and worker containers so we can launch remote
-    # debug sessions from this container to the web and worker processes:
-    - web:web.myapp.example.com
-    - worker:worker.myapp.example.com
   environment:
     <<: *app_environment
     # Run the app in the 'test' environment, instead of the default 'developent'
