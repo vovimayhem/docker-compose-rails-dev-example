@@ -1,7 +1,7 @@
 ---
 # Our PostgreSQL service:
 postgres:
-  image: postgres:9.4.2 # Heroku PostgreSQL Version. This of course is going to be updated constantly!
+  image: postgres:9.4.4
   ports:
     - "5432:5432" # Bind host port 5432 to PostgreSQL port 5432
   volumes:
