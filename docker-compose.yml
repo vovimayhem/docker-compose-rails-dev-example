@@ -13,7 +13,7 @@ postgres:
 
 # Our Redis service:
 redis:
-  image: redis:2.8
+  image: redis:3.0.4
   ports:
     - "6379:6379" # Bind host port 6379 to Redis port 6379
 
