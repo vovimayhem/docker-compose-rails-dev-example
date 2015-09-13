@@ -52,3 +52,7 @@ bower.json
 
 # Ignore environment file:
 /.env
+
+# Ignore project's database dumps:
+/db/dumps/*
+!/db/dumps/README.md

@@ -5,7 +5,7 @@ postgres:
   ports:
     - "5432:5432" # Bind host port 5432 to PostgreSQL port 5432
   volumes:
-    - .:/app # We're mounting this folder so we can backup/restore database dumps from our app folder.
+    - ./db/dumps:/app-db-dumps # We're mounting this folder so we can backup/restore database dumps from our app folder.
     - ./docker-compose/postgres-setup:/docker-entrypoint-initdb.d
   environment:
     LC_ALL: C.UTF-8
