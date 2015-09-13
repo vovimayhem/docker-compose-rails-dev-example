@@ -6,10 +6,10 @@ postgres:
     - "5432:5432" # Bind host port 5432 to PostgreSQL port 5432
   volumes:
     - ./db/dumps:/app-db-dumps # We're mounting this folder so we can backup/restore database dumps from our app folder.
-    - ./docker-compose/postgres-setup:/docker-entrypoint-initdb.d
+    - ./db/postgres-setup.sql/docker-entrypoint-initdb.d/setup.sql
   environment:
     LC_ALL: C.UTF-8
-    POSTGRES_PASSWORD: my_app
+    POSTGRES_PASSWORD: 3x1mpl3
 
 # Our Redis service:
 redis:
@@ -37,14 +37,14 @@ web: &app_base
   # container's /etc/hosts, so we can use more familiar URL's for our app - See
   # this container's environment section below:
   links: &app_links
-    - postgres:postgres.myapp.example.com
-    - redis:redis.myapp.example.com
+    - postgres:postgres.local
+    - redis:redis.local
   environment: &app_environment
-    # PostgreSQL Database:
-    DATABASE_URL: postgres://postgres:my_app@postgres.myapp.example.com:5432/my_app_development?pool=25&encoding=unicode
+    # PostgreSQL Development Database:
+    DATABASE_URL: postgres://postgres:3x1mpl3@postgres.local:5432/xmple_development?pool=25&encoding=unicode&schema_search_path=public
 
     # Redis Database:
-    REDIS_URL: redis://redis.myapp.example.com:6379
+    REDIS_URL: redis://redis.local:6379
 
     # Sidekiq configuration:
     SIDEKIQ_CONCURRENCY: 5
@@ -71,6 +71,9 @@ test:
   command: guard start --no-bundler-warning --no-interactions
   environment:
     <<: *app_environment
+    # PostgreSQL Test Database:
+    DATABASE_URL: postgres://postgres:3x1mpl3@postgres.local:5432/xmple_test?pool=25&encoding=unicode&schema_search_path=public
+
     # Run the app in the 'test' environment, instead of the default 'developent'
     RACK_ENV: test
     RAILS_ENV: test
