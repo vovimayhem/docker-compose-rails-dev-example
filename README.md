@@ -48,14 +48,14 @@ git clone https://github.com/vovimayhem/docker-compose-rails-dev-example.git exa
 
 ## 3: Initialize the app environment in an initial run:
 
-The `first_time_setup.sh` script will do the following:
+The `setup-development-with-docker.sh` script will do the following:
   1. Generate an `.env` file, into which we'll store sensitive info (passwords, SECRET_KEY_BASE, etc). *This file shouldn't be in version control*
   2. Generate the app's `config/secrets.yml` file, which will read the `SECRET_KEY_BASE` environment variable for all rails app environments.
   3. Run the `bundler` command to install the app dependencies in the app's `vendor/bundle` folder.
   4. Run the 'rake db:setup' command to initialize the database.
 
 ```bash
-cd example && ./first_time_setup.sh
+cd example && ./setup-development-with-docker.sh
 ```
 
 Edit if you need the generated `.env` file.
