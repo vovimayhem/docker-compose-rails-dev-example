@@ -39,28 +39,3 @@ Rails.application.configure do
   # Raises error for missing translations
   # config.action_view.raise_on_missing_translations = true
 end
-
-# Launch a Byebug remote debugger service, if specified and not already running:
-if %w(true 1).include? (ENV.fetch 'ENABLE_DEBUG_SERVER', 'false').to_s.downcase
-  require 'socket'
-  byebug_server_host = '0.0.0.0'
-  byebug_server_port = (ENV.fetch 'RUBY_DEBUG_PORT', 8989).to_i
-  begin
-    # Open a client socket to check if Byebug server is already running:
-    test_socket = TCPSocket.new byebug_server_host, byebug_server_port
-
-    # If code is running at this point, we'll assume that a Byebug server
-    # is already running at the requested host:port.
-
-
-    # Close the socket connection:
-    test_socket.close
-
-    puts "A service (most probably a Byebug server) is already listening in '#{byebug_server_host}:#{byebug_server_port}'"
-  rescue Errno::ECONNREFUSED => e
-    # No Byebug server was found running...
-    require 'byebug'
-    Byebug.start_server byebug_server_host, byebug_server_port
-    puts "Byebug server started at '#{byebug_server_host}:#{byebug_server_port}'"
-  end
-end

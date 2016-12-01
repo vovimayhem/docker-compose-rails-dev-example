@@ -1,0 +1,10 @@
+#! /bin/bash
+
+# For use on the postgres container only.
+set -e
+
+: ${DB_NAME:=$1}
+: ${DB_DUMP_PATH:=$2}
+
+pg_dump -U postgres --compress=9 --no-privileges --no-owner --format=custom \
+  --file=$DB_DUMP_PATH $DB_NAME

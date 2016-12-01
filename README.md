@@ -8,61 +8,65 @@ to a nearly trouble-free environment setup in their development machines.
 
 In this example we'll fire up a full app environment consisting of the following:
 
- - A [postgres container](https://github.com/vovimayhem/docker-compose-rails-dev-example/blob/master/docker-compose.yml#L3)
+ - A [postgres container](https://github.com/vovimayhem/docker-compose-rails-dev-example/blob/master/docker-compose.yml#L17)
  which hosts the app's database.
- - A [redis container](https://github.com/vovimayhem/docker-compose-rails-dev-example/blob/master/docker-compose.yml#L14)
+ - A [redis container](https://github.com/vovimayhem/docker-compose-rails-dev-example/blob/master/docker-compose.yml#L38)
  which hosts the app's job queue.
  - An example Rails app running 3 processes on separate containers:
-   - A [`web` container](https://github.com/vovimayhem/docker-compose-rails-dev-example/blob/master/docker-compose.yml#L22)
-   running the Rails web server.
-   - A [`worker` container](https://github.com/vovimayhem/docker-compose-rails-dev-example/blob/master/docker-compose.yml#L62)
+   - A [`jobs` container](https://github.com/vovimayhem/docker-compose-rails-dev-example/blob/master/docker-compose.yml#L51)
    running the app's job processor ([Sidekiq](http://sidekiq.org/)).
-   - A [`test` container](https://github.com/vovimayhem/docker-compose-rails-dev-example/blob/master/docker-compose.yml#L68)
-   running [guard](http://guardgem.org/), which fires tests automatically whenever
-   the app code changes. We'll *also* use this container to launch remote debugging
-   sessions to the running [`web`](https://github.com/vovimayhem/docker-compose-rails-dev-example/blob/master/docker-compose.yml#L22)
-   and [`worker`](https://github.com/vovimayhem/docker-compose-rails-dev-example/blob/master/docker-compose.yml#L62)
-   containers.
+   - A [`worker` container](https://github.com/vovimayhem/docker-compose-rails-dev-example/blob/master/docker-compose.yml#L105)
+   running the Rails web server.
+   - A [`test` container](https://github.com/vovimayhem/docker-compose-rails-dev-example/blob/master/docker-compose.yml#L113)
+   running [guard](http://guardgem.org/), which fires tests automatically whenever a change in the
+   app code is detected.
 
 You'll need to follow some instructions to get this example running:
 
 ## 1: Requirements
 
-You must have both [Docker](https://docs.docker.com/) (or a
-[Docker Machine](https://docs.docker.com/machine/) host) and
-[Docker Compose](https://docs.docker.com/compose/) running on your machine.
+You must have [Docker](https://docs.docker.com/) and
+[Docker Compose](https://docs.docker.com/compose/) on your machine.
 
-You can find instructions for the recommended setup on
-[Linux](doc/DOCKER_SETUP_ON_LINUX.md), [Mac OSX](doc/DOCKER_SETUP_ON_MAC.md) and
-[Windows 8+](doc/DOCKER_SETUP_ON_WINDOWS.md).
+You can install these with:
+  * [Docker for Mac](https://docs.docker.com/docker-for-mac/) on macOS
+  * [Docker for Windows](https://docs.docker.com/docker-for-windows) on Windows
 
-## 2: Cloning the project
+## 2: 'Clone & Run' the project
 
-You should clone the project into a conveniently-named directory, as this repo's
-name is big enough to make typing docker/compose commands tiresome, should the
-need arise:
+You should clone the project into a conveniently-named directory, as this repo's name is big enough
+to make typing docker/compose commands tiresome, should the need arise:
 
-```bash
-git clone https://github.com/vovimayhem/docker-compose-rails-dev-example.git example
+```
+git clone https://github.com/vovimayhem/docker-compose-rails-dev-example.git example \
+  && cd example \
+  && docker-compose up -d web jobs \
+  && docker-compose logs -f
 ```
 
-## 3: Initialize the app environment in an initial run:
+Watch it as it starts all the containers, and how the app database is initialized upon the first run
+before starting the rails web server.
 
-The `setup-development-with-docker.sh` script will do the following:
-  1. Generate an `.env` file, into which we'll store sensitive info (passwords, SECRET_KEY_BASE, etc). *This file shouldn't be in version control*
-  2. Generate the app's `config/secrets.yml` file, which will read the `SECRET_KEY_BASE` environment variable for all rails app environments.
-  3. Run the `bundler` command to install the app dependencies in the app's `vendor/bundle` folder.
-  4. Run the 'rake db:setup' command to initialize the database.
+## 3: NOT ANYMORE: Initialize the app environment in an initial run:
 
-```bash
-cd example && ./setup-development-with-docker.sh
+Originally there was some setup to be made prior to running the app. Fortunately a lot of changes
+happened since then, and although the dotenv file is recommended, it is not required for the project
+to run immediately after cloning.
+
+If you need to, however, you can copy the contents of the example dotenv file into a file
+called `.env`:
+
+```
+cp example.env .env
 ```
 
-Edit if you need the generated `.env` file.
+Docker Compose now reads the `/.env` file by default, if it exists. You can still add other dotenv
+files and reference them in the `docker-compose.yml` file, but that would require an additional step
+than the coveted 'clone and run' project setup.
 
 ## 4: Bring online the project's containers
 
-```bash
+```
 docker-compose up -d
 ```
 
@@ -72,18 +76,28 @@ That's it! Check the running app web interface: [http://localhost:3000](http://l
 
 I usually do some tricks to aid in my day to day activities:
 
- - [Modify the `/etc/hosts` file for rails apps that depend on subdomains.](http://www.example.com)
- - [Generate aliases to the docker-compose command](http://www.example.com), as the `docker-compose` command tires my delicate fingers...
- - [Mess around with the compose commands](http://www.example.com) to start & stop the project's containers.
- - *VERY IMPORTANT* [Launch a remote debug session easily](http://www.example.com) to any of the project's app containers,
- as Docker makes debugging with byebug not so trivial.
- - [Running rails/rake commands on one-off containers](http://www.example.com), which is necessary quite often.
- - [Create a new rails app using docker](doc/CREATE_A_NEW_RAILS_PROJECT.md), if you find yourself in the need of creating a new app, and
- you are already running this example project.
+### Modifying the `/etc/hosts` file for rails apps that depend on subdomains
+Pretty self-explanatory.
+
+### Generate aliases to the docker-compose command... or use Plis
+
+The `docker-compose` commands are a bit lengthy for my taste, so I started generating some bash
+aliases... eventually I created a small Go app called [Plis](https://github.com/IcaliaLabs/plis)
+which besides having a smalled character count, it allows me to attach to any container using the
+service name, which is a must to debug the app using `byebug`:
+
+```
+plis start web && plis attach web
+# => Converts the commands to `docker-compose up -d web && docker attach example_web_1`
+```
+
+### Create a new rails project with Docker
+[Create a new rails app using docker](doc/CREATE_A_NEW_RAILS_PROJECT.md), if you find yourself in
+the need of creating a new app, and you are already running this example project.
 
 ## 6: Example app ruby version
 
-It uses MRI ruby 2.2.2. I'll make some branches using different engines (i.e. Rubinius, JRuby)
+It uses MRI ruby 2.2.6. I'll make some branches using different engines (i.e. Rubinius, JRuby)
 
 ## 7: More Information
 

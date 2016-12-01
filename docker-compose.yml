@@ -1,79 +1,123 @@
----
-# Our PostgreSQL service:
-postgres:
-  image: postgres:9.4.4
-  ports:
-    - "5432:5432" # Bind host port 5432 to PostgreSQL port 5432
-  volumes:
-    - ./db/dumps:/app-db-dumps # We're mounting this folder so we can backup/restore database dumps from our app folder.
-    - ./db/postgres-setup.sql/docker-entrypoint-initdb.d/setup.sql
-  environment:
-    LC_ALL: C.UTF-8
-    POSTGRES_PASSWORD: 3x1mpl3
+version: '2.1'
 
-# Our Redis service:
-redis:
-  image: redis:3.0.4
-  ports:
-    - "6379:6379" # Bind host port 6379 to Redis port 6379
+volumes:
+  # We'll define a volume that will store the data from the postgres databases:
+  postgres-data:
+    driver: local
+  # The rabbitmq data store volume
+  redis-data:
+    driver: local
+  # We'll also define a volume that will store gems installed manually after the initial app
+  # development image build process:
+  app-gems:
+    driver: local
 
-# Application: -----------------------------------------------------------------
-# We'll also use this configuration (&app_base) for the worker and test
-# containers:
-web: &app_base
-  image: vovimayhem/app-dev:mri-2.2.3 # A ruby image with DTrace enabled for dev
-  # Rails 4.2 now binds to 127.0.0.1 by default and not 0.0.0.0.
-  # Start the server using bin/rails server -b 0.0.0.0 and that should sort it.
-  # http://stackoverflow.com/questions/27799260/rails-4-2-server-port-forwarding-on-vagrant-does-not-work
-  # It's fine for development, do not do it in production:
-  command: rails server -p 3000 -b 0.0.0.0
-  ports:
-    - "3000:3000" # Bind host port 3000 to app HTTP port 3000
-  volumes:
-    - .:/app
-  ##############################################################################
-  # With linked containers, Docker writes entries to the container's /etc/hosts.
-  # We'll try here naming the entries docker will insert into the
-  # container's /etc/hosts, so we can use more familiar URL's for our app - See
-  # this container's environment section below:
-  links: &app_links
-    - postgres:postgres.local
-    - redis:redis.local
-  environment: &app_environment
-    # PostgreSQL Development Database:
-    DATABASE_URL: postgres://postgres:3x1mpl3@postgres.local:5432/xmple_development?pool=25&encoding=unicode&schema_search_path=public
+services:
+  # Our PostgreSQL service:
+  postgres:
+    image: postgres:9.6.1
+    ports:
+      # We'll bind our host's port 5432 to postgres's port 5432, so we can use
+      # our database IDEs with it:
+      - 5432:5432
+    volumes:
+      # Mount the DB dumps folder into the container, to be able to create & access database dumps:
+      - ./db/dumps:/db/dumps
+      # Mount out tmp folder, we might want to have access to something there during development:
+      - ./tmp:/tmp
+      # Mount our 'restoredb' script:
+      - ./bin/restoredb:/bin/restoredb:ro
+      # Mount our 'dumpdb' script:
+      - ./bin/dumpdb:/bin/dumpdb:ro
+      # We'll mount the 'postgres-data' volume into the location Postgres stores it's data:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: 3x4mpl3
 
-    # Redis Database:
-    REDIS_URL: redis://redis.local:6379
+  # Our Redis service:
+  redis:
+    image: redis:3.2.4-alpine
+    ports:
+      # We'll bind our host's port 6379 to redis's port 6379, so we can use
+      # Redis Desktop Manager (or other tools) with it:
+      - 6379:6379
+    volumes:
+      # We'll mount the 'redis-data' volume into the location redis stores it's data:
+      - redis-data:/var/lib/redis
+    command: redis-server --appendonly yes
 
-    # Sidekiq configuration:
-    SIDEKIQ_CONCURRENCY: 5
-    SIDEKIQ_TIMEOUT: 10
+  # Application: -----------------------------------------------------------------
+  # We'll also use this configuration (&app_base) for the web and test containers:
+  jobs: &app_base
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    image: vovimayhem/docker-compose-rails-dev-example:development
+    entrypoint: /usr/src/app/development-entrypoint
 
-    # Enable the byebug debugging server - this can be overriden
-    # from the command line:
-    ENABLE_DEBUG_SERVER: true
+    # The command this container will run - in this case, this container will run our sidekiq
+    # process:
+    command: sidekiq -c 25 -q default
 
-    # Run the app in the 'development' environment:
-    RACK_ENV: development
-    RAILS_ENV: development
-  env_file: .env # Include the environment variables in the unversioned .env file
+    volumes:
+      # Mount our app code directory (".") into our app containers at the
+      # "/usr/src/app" folder:
+      - .:/usr/src/app
 
-worker:
-  <<: *app_base
-  ports: []
-  command: sidekiq -c 25 -q default
+      # Mount the 'gems' volume on the folder that stores bundled gems:
+      - app-gems:/usr/local/bundle
 
-# App Guard: Keeps running tests on a separate process:
-test:
-  <<: *app_base # We copy from &app_base, and override:
-  ports: []
-  command: guard start --no-bundler-warning --no-interactions
-  environment:
-    <<: *app_environment
-    # PostgreSQL Test Database:
-    DATABASE_URL: postgres://postgres:3x1mpl3@postgres.local:5432/xmple_test?pool=25&encoding=unicode&schema_search_path=public
+    # Keep the stdin open, so we can attach to our app container's process and do things such as
+    # byebug, etc:
+    stdin_open: true
 
-    # Run the app in the 'test' environment, instead of the default 'developent'
-    RACK_ENV: test
-    RAILS_ENV: test
+    # Enable sending signals (CTRL+C, CTRL+P + CTRL+Q) into the container:
+    tty: true
+
+    # Link to our postgres and redis containers, so they can be visible from our
+    # app containers:
+    links:
+      # We'll include a link to the 'db' (postgres) container, making it visible from the container
+      # using the 'postgres.local' hostname (which is not necessary, but I'm doing it here to
+      # illustrate that you can play with this):
+      - postgres:db.local
+
+      # We'll include a link to the 'keyval' (redis) container, making it
+      # visible from the container using the 'keyval.local' hostname:
+      - redis:keyval.local
+
+    environment: &app_environment
+      # The postgres database URL:
+      DATABASE_URL: postgres://postgres:3x4mpl3@db.local:5432/example_development
+
+      # The redis URL:
+      REDIS_URL: redis://keyval.local:6379
+
+      # Sidekiq configuration:
+      SIDEKIQ_CONCURRENCY: 5
+      SIDEKIQ_TIMEOUT: 10
+
+      # Run the app in the 'development' environment:
+      RACK_ENV: development
+      RAILS_ENV: development
+
+  # This container will run the rails web server:
+  web:
+    # We'll copy from &app_base, and override:
+    <<: *app_base
+    command: rails server -p 3000 -b 0.0.0.0
+    ports:
+      - "3000:3000" # Bind our host's port 3000 to the app port 3000:
+
+  # App Guard: Keeps running tests on a separate process:
+  test:
+    # We'll copy from &app_base, and override:
+    <<: *app_base
+    command: guard start --no-bundler-warning --no-interactions
+    environment:
+      <<: *app_environment
+      # PostgreSQL Test Database:
+      DATABASE_URL: postgres://postgres:3x4mpl3@db.local:5432/example_test
+      # Run the app in the 'test' environment, instead of the default 'developent'
+      RACK_ENV: test
+      RAILS_ENV: test
